@@ -1,0 +1,126 @@
+services:
+    php:
+        build:
+            context: ./dockerfiles/php
+        container_name: fortes-php
+        working_dir: /var/www
+        env_file:
+            - docker.env
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - mysql
+            - redis
+        networks:
+            - app-network
+        restart: unless-stopped
+
+    queue:
+        build:
+            context: ./dockerfiles/php
+        container_name: fortes-queue
+        working_dir: /var/www
+        env_file:
+            - docker.env
+        command: php artisan queue:work --tries=3 --sleep=1
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - redis
+            - mysql
+        networks:
+            - app-network
+        restart: unless-stopped
+
+    nginx:
+        build:
+            context: ./dockerfiles/nginx
+        container_name: fortes-nginx
+        ports:
+            - "8080:80"
+        volumes:
+            - ./:/var/www
+            - ./dockerfiles/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+        depends_on:
+            - php
+        networks:
+            - app-network
+        restart: unless-stopped
+
+    node:
+        image: node:20-alpine
+        container_name: fortes-node
+        working_dir: /var/www
+        environment:
+            - CHOKIDAR_USEPOLLING=true
+        command: sh -c "npm install && npm run watch"
+        volumes:
+            - ./:/var/www
+        networks:
+            - app-network
+        restart: on-failure
+
+    echo:
+        build:
+            context: ./dockerfiles/echo
+        container_name: fortes-echo
+        working_dir: /var/www
+        ports:
+            - "6002:6001"
+        env_file:
+            - docker.env
+        environment:
+            - ECHO_PROTOCOL=http
+            - ECHO_REDIS_HOST=redis
+            - ECHO_REDIS_PORT=6379
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - redis
+        networks:
+            - app-network
+        restart: unless-stopped
+
+    mysql:
+        image: mysql:8.0
+        container_name: fortes-mysql
+        command: --default-authentication-plugin=mysql_native_password
+        env_file:
+            - docker.env
+        volumes:
+            - mysql-data:/var/lib/mysql
+        networks:
+            - app-network
+        restart: unless-stopped
+
+    redis:
+        image: redis:7-alpine
+        container_name: fortes-redis
+        volumes:
+            - redis-data:/data
+        networks:
+            - app-network
+        restart: unless-stopped
+
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin:latest
+        container_name: fortes-phpmyadmin
+        ports:
+            - "8081:80"
+        environment:
+            - PMA_HOST=mysql
+            - PMA_PORT=3306
+            - PMA_ARBITRARY=1
+        depends_on:
+            - mysql
+        networks:
+            - app-network
+        restart: unless-stopped
+
+networks:
+    app-network:
+        driver: bridge
+
+volumes:
+    mysql-data:
+    redis-data:

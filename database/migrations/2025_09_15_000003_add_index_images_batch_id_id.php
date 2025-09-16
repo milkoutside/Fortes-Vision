@@ -11,11 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('role');
-            $table->timestamps();
+        Schema::table('images', function (Blueprint $table) {
+            $table->index(['batch_id', 'id'], 'images_batch_id_id_index');
         });
     }
 
@@ -24,6 +21,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::table('images', function (Blueprint $table) {
+            $table->dropIndex('images_batch_id_id_index');
+        });
     }
 };
+
+

@@ -42,4 +42,25 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'project_user')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function batches()
+    {
+        return $this->belongsToMany(Batch::class, 'batch_user')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function images()
+    {
+        return $this->belongsToMany(Image::class, 'image_user')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
 }
