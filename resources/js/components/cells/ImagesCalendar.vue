@@ -272,10 +272,13 @@ const handleContextMenu = (event, { date, projectId, batchId, imageId }) => {
 
 onMounted(async () => {
     document.addEventListener('mouseup', onGlobalMouseUp)
+    document.addEventListener('mousemove', onGlobalMouseMove, { passive: true })
 })
 
 onUnmounted(() => {
     document.removeEventListener('mouseup', onGlobalMouseUp)
+    document.removeEventListener('mousemove', onGlobalMouseMove)
+    stopAutoScroll()
 })
 
 // =========================
@@ -283,6 +286,12 @@ onUnmounted(() => {
 // =========================
 const isDragging = ref(false)
 const selectionAnchor = ref(null)
+
+// Автоскролл при drag-селекции у краев экрана
+const AUTO_SCROLL_EDGE_PX = 40
+const AUTO_SCROLL_SPEED_PX = 14
+const autoScrollDirection = ref(0) // -1 влево, 1 вправо, 0 — нет
+let autoScrollRAF = null
 
 const normalizeDate = (date) => {
     if (!date) return date
@@ -339,6 +348,8 @@ const onCellMouseEnter = (event) => {
 
 const onGlobalMouseUp = () => {
     isDragging.value = false
+    autoScrollDirection.value = 0
+    stopAutoScroll()
 }
 
 const selectRangeWithinImage = ({ projectId, batchId, imageId, startIndex, endIndex }) => {
@@ -351,6 +362,102 @@ const selectRangeWithinImage = ({ projectId, batchId, imageId, startIndex, endIn
     }
     store.dispatch('coloredCells/clearSelection')
     store.dispatch('coloredCells/selectCellsByDescriptors', descriptors)
+}
+
+const onGlobalMouseMove = (event) => {
+    if (!isDragging.value) {
+        if (autoScrollDirection.value !== 0) {
+            autoScrollDirection.value = 0
+            stopAutoScroll()
+        }
+        return
+    }
+
+    let dir = 0
+
+    const container = document.querySelector('.images-virtual-container') || document.getElementById('calendar-dates-scroll')
+    if (container) {
+        const rect = container.getBoundingClientRect()
+        if (event.clientX >= rect.right - AUTO_SCROLL_EDGE_PX) {
+            dir = 1
+        } else if (event.clientX <= rect.left + AUTO_SCROLL_EDGE_PX) {
+            dir = -1
+        }
+    } else {
+        // Фолбэк на края окна, если контейнер не найден
+        const x = event.clientX
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+        if (x >= viewportWidth - AUTO_SCROLL_EDGE_PX) {
+            dir = 1
+        } else if (x <= AUTO_SCROLL_EDGE_PX) {
+            dir = -1
+        }
+    }
+
+    if (dir !== autoScrollDirection.value) {
+        autoScrollDirection.value = dir
+        if (dir !== 0) startAutoScroll()
+        else stopAutoScroll()
+    }
+}
+
+function startAutoScroll() {
+    if (autoScrollRAF != null) return
+    const step = () => {
+        if (!isDragging.value || autoScrollDirection.value === 0) {
+            autoScrollRAF = null
+            return
+        }
+
+        const clamp = (val, min, max) => Math.min(Math.max(val, min), max)
+        let didScroll = false
+
+        const header = document.getElementById('calendar-dates-scroll')
+        if (header && header.scrollWidth > header.clientWidth) {
+            const maxLeft = Math.max(0, header.scrollWidth - header.clientWidth)
+            const next = clamp(
+                header.scrollLeft + AUTO_SCROLL_SPEED_PX * autoScrollDirection.value,
+                0,
+                maxLeft
+            )
+            if (next !== header.scrollLeft) {
+                header.scrollLeft = next
+                didScroll = true
+            }
+        } else {
+            // Фолбэк на контейнер изображений, если хедер недоступен
+            const imagesContainer = document.querySelector('.images-virtual-container')
+            if (imagesContainer && imagesContainer.scrollWidth > imagesContainer.clientWidth) {
+                const maxLeft = Math.max(0, imagesContainer.scrollWidth - imagesContainer.clientWidth)
+                const next = clamp(
+                    imagesContainer.scrollLeft + AUTO_SCROLL_SPEED_PX * autoScrollDirection.value,
+                    0,
+                    maxLeft
+                )
+                if (next !== imagesContainer.scrollLeft) {
+                    imagesContainer.scrollLeft = next
+                    didScroll = true
+                }
+            }
+        }
+
+        if (!didScroll) {
+            // Достигли края — останавливаем автоскролл
+            autoScrollDirection.value = 0
+            autoScrollRAF = null
+            return
+        }
+
+        autoScrollRAF = requestAnimationFrame(step)
+    }
+    autoScrollRAF = requestAnimationFrame(step)
+}
+
+function stopAutoScroll() {
+    if (autoScrollRAF != null) {
+        cancelAnimationFrame(autoScrollRAF)
+        autoScrollRAF = null
+    }
 }
 
 </script>

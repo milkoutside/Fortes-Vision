@@ -91,8 +91,9 @@ const colorSelectedCells = async () => {
         })
     }
     if (items.length === 0) return
-
-    await store.dispatch('coloredCells/bulkColor', { items })
+    store.commit('coloredCells/clearSelection');
+    await store.dispatch('ui/contextMenu/images/hideContextMenu');
+    await store.dispatch('coloredCells/bulkColor', { items });
 };
 
 const completeSelectedCellsTask = async () => {

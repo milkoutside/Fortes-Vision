@@ -211,7 +211,7 @@ const validateForm = () => {
     clearErrors()
 
     if (!editImage.name.trim()) {
-        errors.name = 'Название изображения обязательно'
+        errors.name = 'Image name is required'
         isValid = false
     }
 
@@ -250,8 +250,8 @@ const updateImage = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Успешно',
-            detail: 'Изображение обновлено успешно',
+            summary: 'Successfully',
+            detail: 'Image successfully updated',
             life: 3000
         })
         closeEditImageModal()
@@ -259,8 +259,8 @@ const updateImage = async () => {
         console.error('Ошибка обновления изображения:', error)
         toast.add({
             severity: 'error',
-            summary: 'Ошибка',
-            detail: 'Произошла непредвиденная ошибка',
+            summary: 'Error',
+            detail: 'An unexpected error has occurred',
             life: 5000
         })
     } finally {

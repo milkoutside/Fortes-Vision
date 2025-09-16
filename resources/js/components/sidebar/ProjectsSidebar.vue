@@ -9,7 +9,7 @@
                         type="text"
                         :value="searchQuery"
                         @input="handleSearchInput"
-                        placeholder="Поиск проектов..."
+                        placeholder="Project search..."
                         class="search-input"
                     />
                 </div>

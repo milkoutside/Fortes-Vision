@@ -212,27 +212,27 @@ const validateForm = () => {
     clearErrors()
 
     if (!editProject.name.trim()) {
-        errors.name = 'Название проекта обязательно'
+        errors.name = 'Project name is required'
         isValid = false
     }
 
     if (!editProject.clientName.trim()) {
-        errors.clientName = 'Имя клиента обязательно'
+        errors.clientName = 'Customer name is required'
         isValid = false
     }
 
     if (!editProject.startDate) {
-        errors.startDate = 'Дата старта обязательна'
+        errors.startDate = 'Start date is mandatory'
         isValid = false
     }
 
     if (!editProject.endDate) {
-        errors.endDate = 'Дата окончания обязательна'
+        errors.endDate = 'End date is mandatory'
         isValid = false
     }
 
     if (editProject.startDate && editProject.endDate && editProject.startDate >= editProject.endDate) {
-        errors.endDate = 'Дата окончания должна быть позже даты старта'
+        errors.endDate = 'The end date must be later than the start date.'
         isValid = false
     }
 
@@ -266,17 +266,17 @@ const updateProject = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Успешно',
-            detail: 'Проект обновлен успешно',
+            summary: 'Successfully',
+            detail: 'Project successfully updated',
             life: 3000
         })
         closeEditProjectModal()
     } catch (error) {
-        console.error('Ошибка обновления проекта:', error)
+        console.error('Project update error:', error)
         toast.add({
             severity: 'error',
-            summary: 'Ошибка',
-            detail: 'Произошла непредвиденная ошибка',
+            summary: 'Error',
+            detail: 'An unexpected error has occurred',
             life: 5000
         })
     } finally {
