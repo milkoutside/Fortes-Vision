@@ -48,7 +48,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useStore } from 'vuex'
 
 const store = useStore();
@@ -95,6 +95,26 @@ onMounted(() => {
     if (calendarHeader) {
         calendarHeader.addEventListener('scroll', handleCalendarScroll, { passive: true });
     }
+
+    // Прокрутка к сегодняшней дате при первом рендере
+    requestAnimationFrame(() => {
+        const header = document.getElementById('calendar-dates-scroll');
+        if (!header) return;
+        const todayCell = header.querySelector('.date-cell.today');
+        if (!todayCell) return;
+
+        const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+        const headerRect = header.getBoundingClientRect();
+        const cellRect = todayCell.getBoundingClientRect();
+        const deltaLeft = cellRect.left - headerRect.left; // положение ячейки внутри видимой области
+        const cellCenterInContent = header.scrollLeft + deltaLeft + todayCell.clientWidth / 2;
+        const targetScrollLeft = clamp(
+            cellCenterInContent - header.clientWidth / 2,
+            0,
+            Math.max(0, header.scrollWidth - header.clientWidth)
+        );
+        header.scrollLeft = targetScrollLeft;
+    });
 });
 
 // Удаляем обработчики при размонтировании

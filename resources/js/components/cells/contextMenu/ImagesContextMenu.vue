@@ -6,27 +6,27 @@
             :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
             @click.stop
         >
-            <div class="context-menu-header">Действия с ячейками</div>
+            <div class="context-menu-header">Cells actions</div>
             <div class="context-menu-items">
                 <template v-if="selectedStatus">
                     <div class="context-menu-item" @click="colorSelectedCells">
                         <i class="pi pi-palette"></i>
-                        <span>Закрасить в "{{ selectedStatus.name }}"</span>
+                        <span>Fill in "{{ selectedStatus.name }}"</span>
                     </div>
                 </template>
                 <div v-if="hasSelectedCellsWithStatus && !isSelectedGroupCompleted"
                      class="context-menu-item"
                      @click="completeSelectedCellsTask">
                     <i class="pi pi-check"></i>
-                    <span>Завершить задачу</span>
+                    <span>Complete the task</span>
                 </div>
                 <div class="context-menu-item" @click="clearSelection">
                     <i class="pi pi-times"></i>
-                    <span>Снять выделение</span>
+                    <span>Remove selection</span>
                 </div>
                 <div class="context-menu-item" @click="clearSelectedCellsColor">
                     <i class="pi pi-trash"></i>
-                    <span>Очистить цвет</span>
+                    <span>Clear color</span>
                 </div>
             </div>
         </div>
