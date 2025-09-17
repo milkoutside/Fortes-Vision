@@ -1,12 +1,12 @@
 <template>
     <div>
 
-            <Button
-                label="Create Project"
-                size="small"
-                severity="success"
-                @click="showCreateProjectModal"
-            />
+        <Button
+            label="Create Project"
+            size="small"
+            severity="success"
+            @click="showCreateProjectModal"
+        />
 
         <!-- Модальное окно создания проекта -->
         <Dialog
@@ -224,27 +224,27 @@ const validateForm = () => {
     })
 
     if (!newProject.name.trim()) {
-        errors.name = 'Название проекта обязательно'
+        errors.name = 'Project name is required'
         isValid = false
     }
 
     if (!newProject.clientName.trim()) {
-        errors.clientName = 'Имя клиента обязательно'
+        errors.clientName = 'Customer name is required'
         isValid = false
     }
 
     if (!newProject.startDate) {
-        errors.startDate = 'Дата старта обязательна'
+        errors.startDate = 'Start date is mandatory'
         isValid = false
     }
 
     if (!newProject.endDate) {
-        errors.endDate = 'Дата окончания обязательна'
+        errors.endDate = 'End date is mandatory'
         isValid = false
     }
 
     if (newProject.startDate && newProject.endDate && newProject.startDate >= newProject.endDate) {
-        errors.endDate = 'Дата окончания должна быть позже даты старта'
+        errors.endDate = 'The end date must be later than the start date.'
         isValid = false
     }
 
@@ -281,8 +281,8 @@ const createProject = async () => {
         if (result) {
             toast.add({
                 severity: 'success',
-                summary: 'Успешно',
-                detail: 'Проект создан успешно',
+                summary: 'Success',
+                detail: 'The project was successfully created.',
                 life: 3000
             })
 
@@ -308,16 +308,16 @@ const createProject = async () => {
 
                     toast.add({
                         severity: 'info',
-                        summary: 'Информация',
-                        detail: `Привязано ${selectedProjectManagers.value.length} менеджеров к проекту`,
+                        summary: 'Info',
+                        detail: `${selectedProjectManagers.value.length} managers are assigned to the project.`,
                         life: 3000
                     })
                 } catch (error) {
                     console.error('Ошибка привязки пользователей:', error)
                     toast.add({
                         severity: 'warn',
-                        summary: 'Предупреждение',
-                        detail: 'Проект создан, но не удалось привязать менеджеров',
+                        summary: 'Warning',
+                        detail: 'The project was created, but it was not possible to assign managers to it.',
                         life: 5000
                     })
                 }
@@ -325,8 +325,8 @@ const createProject = async () => {
         } else {
             toast.add({
                 severity: 'error',
-                summary: 'Ошибка',
-                detail: 'Не удалось создать проект',
+                summary: 'Error',
+                detail: 'Failed to create project',
                 life: 5000
             })
         }
@@ -334,8 +334,8 @@ const createProject = async () => {
         console.error('Ошибка создания проекта:', error)
         toast.add({
             severity: 'error',
-            summary: 'Ошибка',
-            detail: error.message || 'Произошла непредвиденная ошибка',
+            summary: 'Error',
+            detail: 'An unexpected error has occurred',
             life: 5000
         })
     } finally {

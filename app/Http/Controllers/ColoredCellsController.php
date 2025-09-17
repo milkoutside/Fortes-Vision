@@ -465,8 +465,29 @@ class ColoredCellsController extends Controller
             // Получим ID и текущие даты для безопасного сдвига (в порядке убывания дат)
             $toShift = $shiftQuery->orderBy('date', 'desc')->get(['id', 'date']);
             foreach ($toShift as $row) {
-                $newDate = ($row->date instanceof Carbon ? $row->date->copy() : Carbon::parse($row->date))->addDays($additionalDays)->toDateString();
-                ColoredCell::query()->where('id', $row->id)->update(['date' => $newDate]);
+                $rowDate = $row->date instanceof Carbon ? $row->date->copy()->startOfDay() : Carbon::parse($row->date)->startOfDay();
+                $target = $rowDate->copy()->addDays($additionalDays);
+                while (true) {
+                    $conflict = ColoredCell::query()
+                        ->where('project_id', $projectId)
+                        ->where('batch_id', $batchId)
+                        ->where('image_id', $imageId)
+                        ->whereDate('date', $target->toDateString())
+                        ->first(['id', 'status_id']);
+                    if (!$conflict) { break; }
+                    if ((int) $conflict->status_id === (int) $delayStatus->id) {
+                        // Освобождаем слот, удалив Delay
+                        ColoredCell::query()->where('id', $conflict->id)->delete();
+                        break;
+                    }
+                    // Конфликт с не-Delay, двигаем дальше
+                    $target->addDay();
+                    if ($target->diffInDays($rowDate) > 365) { break; }
+                }
+                $newDate = $target->toDateString();
+                if ($newDate !== $rowDate->toDateString()) {
+                    ColoredCell::query()->where('id', $row->id)->update(['date' => $newDate]);
+                }
             }
 
             // 2) Вставляем Delay на пустые даты окна просрочки
