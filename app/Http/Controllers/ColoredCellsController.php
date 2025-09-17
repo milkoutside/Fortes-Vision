@@ -204,14 +204,14 @@ class ColoredCellsController extends Controller
             return $this->byImageAndPeriod($projectId, $batchId, $imageId, $request);
         }
 
-        // Область выборки: захватим до вчерашнего дня, чтобы корректно посчитать дилей
-        $queryTo = $to->greaterThan($yesterday) ? $to : $yesterday;
+        // Область выборки: считаем дилей на всей истории до вчерашнего дня (или верхней границы, если она раньше)
+        $queryTo = $to->lt($yesterday) ? $to : $yesterday;
 
         $cells = ColoredCell::query()
             ->where('project_id', $projectId)
             ->where('batch_id', $batchId)
             ->where('image_id', $imageId)
-            ->whereBetween('date', [$from, $queryTo])
+            ->where('date', '<=', $queryTo)
             ->orderBy('date')
             ->get();
 
