@@ -14,7 +14,7 @@
                         <span>Fill in "{{ selectedStatus.name }}"</span>
                     </div>
                 </template>
-                <div v-if="hasSelectedCellsWithStatus && !isSelectedGroupCompleted"
+                <div v-if="hasSelectedCellsWithStatus && !isSelectedGroupCompleted && !hasDelayInSelection"
                      class="context-menu-item"
                      @click="completeSelectedCellsTask">
                     <i class="pi pi-check"></i>
@@ -58,6 +58,21 @@ const hasSelectedCellsWithStatus = computed(() =>
 const isSelectedGroupCompleted = computed(() =>
     store.getters['coloredCells/isSelectedGroupCompleted']
 );
+
+// Скрывать завершение, если выделение содержит Delay
+const hasDelayInSelection = computed(() => {
+    const delayStatusGetter = store.getters['statuses/delayStatus']
+    const delayStatus = typeof delayStatusGetter === 'function' ? delayStatusGetter() : null
+    const delayStatusId = delayStatus ? delayStatus.id : null
+    if (!delayStatusId) return false
+    const cells = store.state.coloredCells.cellsByKey || {}
+    const selectedKeys = store.state.coloredCells.selectedKeys || new Set()
+    for (const key of selectedKeys) {
+        const cell = cells[key]
+        if (cell && cell.statusId === delayStatusId) return true
+    }
+    return false
+});
 
 // Обработчик для закрытия меню при клике вне его
 const handleOutsideClick = (event) => {
