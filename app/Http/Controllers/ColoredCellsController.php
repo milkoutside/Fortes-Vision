@@ -202,10 +202,6 @@ class ColoredCellsController extends Controller
         $delayStatus = Status::query()->where('name', 'Delay')->first();
         if (!$delayStatus) {
             return $this->byImageAndPeriod($projectId, $batchId, $imageId, $request);
-        }else{
-            return response()->json([
-                'message' => 'Status "Delay" not found',
-            ], 404);
         }
 
         // Область выборки: захватим до вчерашнего дня, чтобы корректно посчитать дилей
