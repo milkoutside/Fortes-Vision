@@ -73,3 +73,5 @@ Route::prefix('colored-cells')->group(function () {
 
 // Получение ячеек по изображению за период
 Route::get('/projects/{project}/batches/{batch}/images/{image}/colored-cells', [ColoredCellsController::class, 'byImageAndPeriod']);
+// Получение ячеек за период + расчёт суммарного дилея
+Route::get('/projects/{project}/batches/{batch}/images/{image}/delay', [ColoredCellsController::class, 'delayByImageAndPeriod']);

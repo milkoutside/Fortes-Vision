@@ -86,7 +86,27 @@ const scrollRight = () => {
 }
 
 const selectStatus = async (status) => {
-  storage.dispatch('statuses/selectStatus', status)
+  await storage.dispatch('statuses/selectStatus', status)
+    const selectedStatusValue = selectedStatus.value
+    if (!selectedStatusValue) return
+
+    // Собираем выбранные ключи из стора coloredCells
+    const items = []
+    const selectedKeys = storage.state.coloredCells.selectedKeys
+    for (const key of selectedKeys) {
+        const [projectId, batchId, imageId, date] = key.split(':')
+        items.push({
+            project_id: Number(projectId),
+            batch_id: Number(batchId),
+            image_id: Number(imageId),
+            date,
+            status_id: selectedStatusValue.id,
+        })
+    }
+    if (items.length === 0) return
+    await storage.commit('coloredCells/clearSelection');
+    await storage.dispatch('ui/contextMenu/images/hideContextMenu');
+    await storage.dispatch('coloredCells/bulkColor', { items });
 }
 
 // Setup scroll checking
