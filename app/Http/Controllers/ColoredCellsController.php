@@ -291,8 +291,8 @@ class ColoredCellsController extends Controller
             ], 404);
         }
 
-        // Просрочка считается до вчерашнего дня включительно
-        $yesterday = now()->startOfDay()->subDay();
+        // Просрочка считается до сегодняшнего дня включительно
+        $today = now()->startOfDay();
 
         // Берём все ячейки по изображению (для корректного построения групп и сдвигов)
         $allCells = ColoredCell::query()
@@ -363,7 +363,7 @@ class ColoredCellsController extends Controller
             $g = $groups[$i];
             if ((int) $g['status_id'] === (int) $delayStatus->id) { continue; }
             if ($g['completed'] === true) { continue; }
-            if (!$g['end']->lt($yesterday)) { continue; }
+            if (!$g['end']->lt($today)) { continue; }
             // Проверяем, есть ли впереди завершённая группа
             $hasCompletedAhead = false;
             for ($j = $i + 1; $j < count($groups); $j++) {
@@ -396,7 +396,7 @@ class ColoredCellsController extends Controller
         }
 
         $overdueGroup = $groups[$overdueIdx];
-        $delayDays = $overdueGroup['end']->diffInDays($yesterday);
+        $delayDays = $overdueGroup['end']->diffInDays($today);
 
         if ($delayDays <= 0) {
             $cells = ColoredCell::query()
@@ -412,9 +412,9 @@ class ColoredCellsController extends Controller
             ]);
         }
 
-        // Диапазон для вставки Delay: (end+1) .. вчера
+        // Диапазон для вставки Delay: (end+1) .. сегодня
         $delayStart = $overdueGroup['end']->copy()->addDay();
-        $delayEnd = $yesterday->copy();
+        $delayEnd = $today->copy();
 
         // Идемпотентность: считаем, сколько Delay-дней уже существует, и сдвигаем только на дельту
         $desiredDelayDays = 0;
