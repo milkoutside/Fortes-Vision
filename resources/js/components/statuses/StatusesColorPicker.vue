@@ -15,18 +15,18 @@
                 <div class="statuses-container" ref="statusesContainer">
                     <div class="statuses-wrapper" ref="statusesWrapper">
 
-                            <div
-                                v-if="statuses?.length > 0"
-                                v-for="status in statuses"
-                                :key="status.id"
-                                class="status-item"
-                                :class="{ 'selected': selectedStatus && selectedStatus.id === status.id }"
-                                :style="{ backgroundColor: status.color + '40' }"
-                                @click="selectStatus(status)"
-                            >
-                                <div class="status-color" :style="{ backgroundColor: status.color }"></div>
-                                <div class="status-name">{{ status.name }}</div>
-                            </div>
+                        <div
+                            v-if="statusesWithoutWeekend?.length > 0"
+                            v-for="status in statusesWithoutWeekend"
+                            :key="status.id"
+                            class="status-item"
+                            :class="{ 'selected': selectedStatus && selectedStatus.id === status.id }"
+                            :style="{ backgroundColor: status.color + '40' }"
+                            @click="selectStatus(status)"
+                        >
+                            <div class="status-color" :style="{ backgroundColor: status.color }"></div>
+                            <div class="status-name">{{ status.name }}</div>
+                        </div>
                         <div style="font-weight: 900" v-else>
                             Empty
                         </div>
@@ -60,6 +60,9 @@ const canScrollRight = ref(false)
 
 // Используем storage вместо store
 const statuses = computed(() => storage.getters['statuses/allStatuses'])
+const statusesWithoutWeekend = computed(() =>
+    storage.getters['statuses/allStatuses'].filter(status => status.name !== "Weekend")
+)
 const selectedStatus = computed(() => storage.getters['statuses/selectedStatus'])
 
 // Scroll functionality
@@ -75,18 +78,38 @@ const checkScroll = () => {
 
 const scrollLeft = () => {
     if (statusesWrapper.value) {
-        statusesWrapper.value.scrollBy({ left: -scrollStep, behavior: 'smooth' })
+        statusesWrapper.value.scrollBy({left: -scrollStep, behavior: 'smooth'})
     }
 }
 
 const scrollRight = () => {
     if (statusesWrapper.value) {
-        statusesWrapper.value.scrollBy({ left: scrollStep, behavior: 'smooth' })
+        statusesWrapper.value.scrollBy({left: scrollStep, behavior: 'smooth'})
     }
 }
 
 const selectStatus = async (status) => {
-  storage.dispatch('statuses/selectStatus', status)
+    storage.dispatch('statuses/selectStatus', status)
+    const selectedStatusValue = selectedStatus.value
+    if (!selectedStatusValue) return
+
+    // Собираем выбранные ключи из стора coloredCells
+    const items = []
+    const selectedKeys = storage.state.coloredCells.selectedKeys
+    for (const key of selectedKeys) {
+        const [projectId, batchId, imageId, date] = key.split(':')
+        items.push({
+            project_id: Number(projectId),
+            batch_id: Number(batchId),
+            image_id: Number(imageId),
+            date,
+            status_id: selectedStatusValue.id,
+        })
+    }
+    if (items.length === 0) return
+    await storage.commit('coloredCells/clearSelection');
+    await storage.dispatch('ui/contextMenu/images/hideContextMenu');
+    await storage.dispatch('coloredCells/bulkColor', {items});
 }
 
 // Setup scroll checking
@@ -107,7 +130,7 @@ onUnmounted(() => {
 
 // Check scroll state when statuses change
 watch(statuses, () => {
-    console.log('tick',statuses)
+    console.log('tick', statuses)
     nextTick(checkScroll)
 })
 
@@ -150,7 +173,6 @@ watch(statuses, () => {
     max-width: 100%; /* Увеличиваем с 400px до 800px */
     position: relative;
 }
-
 
 
 .statuses-wrapper {
@@ -212,6 +234,7 @@ watch(statuses, () => {
     height: 32px;
     border-radius: 4px;
 }
+
 .status-management {
     padding: 8px 0;
 }

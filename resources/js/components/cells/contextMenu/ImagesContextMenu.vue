@@ -39,6 +39,9 @@ import { useStore } from 'vuex';
 
 const store = useStore();
 
+// Текущий видимый диапазон дат (как в ImagesCalendar)
+const allDatesInThreeMonths = computed(() => store.getters['calendar/allDatesInThreeMonths'])
+
 // Получаем состояние контекстного меню из хранилища
 const showContextMenuFlag = computed(() => store.getters['ui/contextMenu/images/showContextMenu']);
 const contextMenuPosition = computed(() => store.getters['ui/contextMenu/images/contextMenuPosition']);
@@ -97,27 +100,210 @@ const colorSelectedCells = async () => {
 };
 
 const completeSelectedCellsTask = async () => {
+    // Собираем выделенные ключи
+    const selectedKeys = Array.from(store.state.coloredCells.selectedKeys || [])
+    if (!selectedKeys.length) return
 
+    // Вспомогательные утилиты для дат (UTC, формат YYYY-MM-DD)
+    const toIso = (date) => {
+        try {
+            if (!date) return date
+            if (typeof date === 'string') return date.split('T')[0]
+            const d = new Date(date)
+            return isNaN(d.getTime()) ? date : d.toISOString().split('T')[0]
+        } catch (e) { return date }
+    }
+    const shiftIso = (iso, deltaDays) => {
+        try {
+            const [y, m, d] = toIso(iso).split('-').map(Number)
+            const dt = new Date(Date.UTC(y, m - 1, d))
+            dt.setUTCDate(dt.getUTCDate() + deltaDays)
+            const y2 = dt.getUTCFullYear()
+            const m2 = String(dt.getUTCMonth() + 1).padStart(2, '0')
+            const d2 = String(dt.getUTCDate()).padStart(2, '0')
+            return `${y2}-${m2}-${d2}`
+        } catch (e) { return toIso(iso) }
+    }
+
+    // Получим id статуса Delay, чтобы его не завершать
+    const delayStatusGetter = store.getters['statuses/delayStatus']
+    const delayStatus = typeof delayStatusGetter === 'function' ? delayStatusGetter() : null
+    const delayStatusId = delayStatus ? delayStatus.id : null
+
+    // Построим карту по строкам (project:batch:image) -> выбранные даты
+    const byRow = new Map()
+    for (const key of selectedKeys) {
+        const [projectId, batchId, imageId, date] = key.split(':')
+        const rowKey = `${projectId}:${batchId}:${imageId}`
+        if (!byRow.has(rowKey)) byRow.set(rowKey, new Set())
+        byRow.get(rowKey).add(toIso(date))
+    }
+
+    // Доступ к клеткам стора
+    const cells = store.state.coloredCells.cellsByKey || {}
+
+    // Для каждой строки расширяем каждую выбранную дату до непрерывной группы одинакового статуса
+    const items = []
+    for (const [rowKey, selectedDatesSet] of byRow.entries()) {
+        const [pId, bId, iId] = rowKey.split(':').map(Number)
+        const selectedDates = Array.from(selectedDatesSet).sort()
+
+        for (const sel of selectedDates) {
+            const baseKey = `${rowKey}:${sel}`
+            const baseCell = cells[baseKey]
+            if (!baseCell || !baseCell.statusId) continue
+            if (delayStatusId && baseCell.statusId === delayStatusId) continue // не завершаем Delay
+
+            const statusId = baseCell.statusId
+
+            // Расширяем влево
+            let left = sel
+            while (true) {
+                const cand = shiftIso(left, -1)
+                const ck = `${rowKey}:${cand}`
+                const c = cells[ck]
+                if (!c || c.statusId !== statusId) break
+                left = cand
+            }
+
+            // Расширяем вправо
+            let right = sel
+            while (true) {
+                const cand = shiftIso(right, 1)
+                const ck = `${rowKey}:${cand}`
+                const c = cells[ck]
+                if (!c || c.statusId !== statusId) break
+                right = cand
+            }
+
+            // Собираем все даты от left до right включительно
+            let cursor = left
+            while (true) {
+                items.push({
+                    project_id: pId,
+                    batch_id: bId,
+                    image_id: iId,
+                    date: cursor,
+                    status_id: statusId,
+                    completed: true,
+                })
+                if (cursor === right) break
+                cursor = shiftIso(cursor, 1)
+            }
+        }
+    }
+
+    if (!items.length) return
+
+    // Уберём дубли на случай пересечения групп
+    const uniq = new Map()
+    for (const it of items) {
+        const k = `${it.project_id}:${it.batch_id}:${it.image_id}:${toIso(it.date)}`
+        uniq.set(k, it)
+    }
+
+    const finalized = Array.from(uniq.values())
+    await store.dispatch('coloredCells/bulkColor', { items: finalized })
+
+    // Обновляем дилеи точечно: пересчитываем только по затронутым изображениям
+    try {
+        const affectedImageKeys = new Set(finalized.map(it => `${it.project_id}:${it.batch_id}:${it.image_id}`))
+        const dates = allDatesInThreeMonths.value || []
+        if (affectedImageKeys.size && dates.length >= 2) {
+            const from = (() => {
+                try { return new Date(dates[0]).toISOString().split('T')[0] } catch (e) { return dates[0] }
+            })()
+            const to = (() => {
+                try { return new Date(dates[dates.length - 1]).toISOString().split('T')[0] } catch (e) { return dates[dates.length - 1] }
+            })()
+            await Promise.all(Array.from(affectedImageKeys).map(async (ik) => {
+                const [pId, bId, iId] = ik.split(':').map(Number)
+                await store.dispatch('coloredCells/fetchByImageAndPeriodWithDelay', {
+                    projectId: pId,
+                    batchId: bId,
+                    imageId: iId,
+                    from,
+                    to,
+                })
+            }))
+        }
+    } catch (e) {
+        // no-op: обновление визуальное, не критично
+    }
+
+    await store.dispatch('ui/contextMenu/images/hideContextMenu')
+    store.commit('coloredCells/clearSelection')
 };
 
 const clearSelection = async () => {
     await store.dispatch('coloredCells/clearSelection')
+    await store.dispatch('ui/contextMenu/images/hideContextMenu')
 };
 
 const clearSelectedCellsColor = async () => {
     const selectedKeys = store.state.coloredCells.selectedKeys
-    const items = []
+    if (!selectedKeys || selectedKeys.size === 0) return
+
+    // Определим Delay статус
+    const delayStatusGetter = store.getters['statuses/delayStatus']
+    const delayStatus = typeof delayStatusGetter === 'function' ? delayStatusGetter() : null
+    const delayStatusId = delayStatus ? delayStatus.id : null
+
+    const cells = store.state.coloredCells.cellsByKey || {}
+
+    const delayItems = []
+    const taskItems = []
+    const affectedImageKeys = new Set()
     for (const key of selectedKeys) {
         const [projectId, batchId, imageId, date] = key.split(':')
-        items.push({
+        const cell = cells[key]
+        const composite = {
             project_id: Number(projectId),
             batch_id: Number(batchId),
             image_id: Number(imageId),
             date,
-        })
+        }
+        affectedImageKeys.add(`${projectId}:${batchId}:${imageId}`)
+        if (cell && delayStatusId && cell.statusId === delayStatusId) {
+            delayItems.push(composite)
+        } else {
+            // всегда отправляем составной ключ, сервер сам обработает Weekend/обычные
+            taskItems.push(composite)
+        }
     }
-    if (items.length === 0) return
-    await store.dispatch('coloredCells/bulkDelete', { items })
+
+    // Сначала удаляем Delay (сдвиг назад выполнит сервер), затем обычные задачи
+    if (delayItems.length > 0) {
+        await store.dispatch('coloredCells/bulkDelete', { items: delayItems })
+    }
+    if (taskItems.length > 0) {
+        await store.dispatch('coloredCells/bulkDelete', { items: taskItems })
+    }
+
+    // Перезагрузка только затронутых изображений с учётом дилея
+    try {
+        const dates = allDatesInThreeMonths.value || []
+        if (affectedImageKeys.size && dates.length >= 2) {
+            const from = (() => {
+                try { return new Date(dates[0]).toISOString().split('T')[0] } catch (e) { return dates[0] }
+            })()
+            const to = (() => {
+                try { return new Date(dates[dates.length - 1]).toISOString().split('T')[0] } catch (e) { return dates[dates.length - 1] }
+            })()
+            await Promise.all(Array.from(affectedImageKeys).map(async (ik) => {
+                const [pId, bId, iId] = ik.split(':').map(Number)
+                await store.dispatch('coloredCells/fetchByImageAndPeriodWithDelay', {
+                    projectId: pId,
+                    batchId: bId,
+                    imageId: iId,
+                    from,
+                    to,
+                })
+            }))
+        }
+    } catch (e) {
+        // no-op
+    }
 };
 </script>
 

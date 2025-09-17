@@ -94,6 +94,13 @@ const actions = {
         commit('setCells', data.cells || [])
         return data.cells
     },
+    async fetchByImageAndPeriodWithDelay({ commit }, { projectId, batchId, imageId, from, to }) {
+        const { data } = await axios.get(`/api/projects/${projectId}/batches/${batchId}/images/${imageId}/colored-cells/delay`, {
+            params: { from, to }
+        })
+        commit('setCells', data.cells || [])
+        return data.cells
+    },
 
     async bulkColor({ commit }, { items }) {
         const { data } = await axios.post('/api/colored-cells/bulk-color', { items })
@@ -116,7 +123,7 @@ const actions = {
 
         const results = await Promise.all(
             images.map(image =>
-                dispatch('fetchByImageAndPeriod', {
+                dispatch('fetchByImageAndPeriodWithDelay', { // fetchByImageAndPeriodWithDelay
                     projectId,
                     batchId,
                     imageId: image.id,

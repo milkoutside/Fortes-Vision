@@ -33,10 +33,13 @@ import ProjectsSidebar from "@/components/sidebar/ProjectsSidebar.vue";
 import ProjectInfoModal from "@/components/sidebar/modals/ProjectInfoModal.vue";
 import ImageInfoModal from "@/components/sidebar/modals/ImageInfoModal.vue";
 import ImagesCalendar from "@/components/cells/ImagesCalendar.vue";
+import ProgressSpinner from "primevue/progressspinner";
 const loading = ref(false);
 onMounted(async () => {
+    loading.value = true;
     await store.dispatch('statuses/fetchAllStatuses');
     await store.dispatch('users/fetchAllUsers');
+    loading.value = false;
 })
 </script>
 <style scoped>
